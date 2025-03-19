@@ -1,24 +1,20 @@
 <script setup>
-  import { computed, ref, watch, onBeforeMount } from 'vue';
+  import { computed, ref, watch, onBeforeMount, onMounted } from 'vue';
   import _todos from './data/todos';
+  import * as todoApi from './api/todos';
   import StatusFilter from './components/StatusFilter.vue';
   import TodoItem from './components/TodoItem.vue';
 
-  const todos = ref(_todos);
-  onBeforeMount(()=> {
-    try {
-      todos.value= JSON.parse(localStorage.getItem('todos'));
-    } catch (error) {}
-  
-    if(!Array.isArray(todos.value)){
-      todos.value = [];
-    }
+  const todos = ref([]);
+  onMounted(async () => {
+    todos.value = await todoApi.getTodos();
   });
+
   const status = ref("all");
   const title = ref("");
   const errorMessage = ref("");
   const activeTodos = computed(() => todos.value.filter(todo => !todo.completed));
-  const initialToDos = [];
+
   const filteredTodos = computed(() => {
     if (status.value == 'active') {
       return activeTodos.value;
@@ -31,34 +27,34 @@
     return todos.value;
   });
 
-  watch(
-    todos,
-    newTodos => localStorage.setItem('todos', JSON.stringify(newTodos)),
-    {deep: true}
-  );
-
-  
-  function addTodo() {
+  const addTodo = async () => {
     if (!title.value) {
       errorMessage = "Title should not be empty";
     }
 
-    todos.value.push(
-      {
-        id: todos.value.length ? todos.value[todos.value.length - 1].id + 1 : 1,
-        title: title.value,
-        completed: false, 
-      }
-    );
+    const newTodo = await todoApi.createTodo(title.value);
 
-    title.value = "";
-  }
+    todos.value.push(newTodo);
+    title.value = '';
+  };
+  
+  const deleteTodo = async todoId => {
+    await todoApi.deleteTodo(todoId);
+    todos.value = todos.value.filter(todo => todoId !== todo.id);
+  };
+
+  const updateTodo = async ({ id, title, completed }) => {
+    const updatedTodo = await todoApi.updateTodo({ id, title, completed });
+    const currentTodo = todos.value.find(todo => todo.id === id);
+  
+    Object.assign(currentTodo, updatedTodo);
+  };
 </script>
 
 <template>
 
   <div class="todoapp">
-    <h1 class="todoapp__title"> To do list.</h1>
+    <h1 class="todoapp__title">todos</h1>
     <div class="todoapp__content">
       <header class="todoapp__header">
         <!--this button should have `active` class only if all todos are completed -->
@@ -86,8 +82,8 @@
           v-for="(todo, i) of filteredTodos" 
           :key="todo.id" 
           :todo="todo" 
-          @delete="todos.splice(todos.indexOf(todo), 1)"
-          @update="Object.assign(todo, $event)" 
+          @delete="deleteTodo(todo.id)" 
+          @update="updateTodo($event)"
         />
       </TransitionGroup>
       <!-- Hide the footer if there are no todos -->
