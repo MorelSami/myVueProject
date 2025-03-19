@@ -1,7 +1,6 @@
 <script setup>
   import { computed, ref, watch, onBeforeMount } from 'vue';
   import _todos from './data/todos';
-  import * as todoApi from './api/todos';
   import StatusFilter from './components/StatusFilter.vue';
   import TodoItem from './components/TodoItem.vue';
 
